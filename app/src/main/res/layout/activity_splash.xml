@@ -5,8 +5,8 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/back_light"
     tools:context=".SplashActivity">
+
 
     <ImageView
         android:id="@+id/imageView"
@@ -17,36 +17,36 @@
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.597"
+        app:layout_constraintVertical_bias="0.895"
         app:srcCompat="@drawable/icono_app" />
 
     <com.airbnb.lottie.LottieAnimationView
-
         android:id="@+id/lottieAnimationView"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.531"
+        app:layout_constraintVertical_bias="0.636"
         app:lottie_autoPlay="true"
         app:lottie_fileName="loading.json"
         app:lottie_imageAssetsFolder="assets"
-        app:lottie_loop="false">
+        app:lottie_loop="true">
 
     </com.airbnb.lottie.LottieAnimationView>
 
-    <ImageView
-        android:id="@+id/imageView2"
+    <TextView
+        android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="@string/version"
+        android:textSize="18sp"
+        android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/lottieAnimationView"
-        app:layout_constraintVertical_bias="0.416"
-        app:srcCompat="@drawable/instituto_barranqueras" />
+        app:layout_constraintVertical_bias="0.81" />
 </androidx.constraintlayout.widget.ConstraintLayout>
