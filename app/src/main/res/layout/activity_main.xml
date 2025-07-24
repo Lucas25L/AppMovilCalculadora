@@ -84,7 +84,7 @@
             android:layout_columnWeight="1"
             android:layout_margin="4dp"
             android:text="C"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="@color/red"
             android:textSize="24sp" />
 
         <Button
@@ -271,7 +271,7 @@
             android:layout_columnWeight="1"
             android:layout_margin="4dp"
             android:text="="
-            android:textColor="?attr/colorOnSecondary"
+            android:textColor="?android:attr/textColorPrimary"
             android:textSize="24sp" />
 
         <Button

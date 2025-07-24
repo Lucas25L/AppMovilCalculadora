@@ -15,16 +15,16 @@
         <activity
             android:name=".SplashActivity"
             android:exported="true"
-            android:theme="@style/Theme.NuevaCalculadora">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
+            android:theme="@style/Theme.App.Launcher"> <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+        </activity>
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity> <!-- MainActivity como actividad normal -->
         <activity
             android:name=".MainActivity"
-            android:exported="true" />
+            android:exported="false">
+        </activity>
     </application>
 
 </manifest>
