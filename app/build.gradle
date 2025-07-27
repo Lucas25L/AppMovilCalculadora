@@ -43,6 +43,9 @@ dependencies {
     //librería para las animaciones
     implementation "com.airbnb.android:lottie:5.2.0"
 
+    //Librería para evaluación de expresiones
+    implementation 'net.objecthunter:exp4j:0.4.8'
+
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core

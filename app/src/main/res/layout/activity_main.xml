@@ -88,14 +88,14 @@
             android:textSize="24sp" />
 
         <Button
-            android:id="@+id/btnDivide"
+            android:id="@+id/btnAllClear"
             style="@style/Widget.AppCompat.Button.Borderless"
             android:layout_width="0dp"
             android:layout_height="70dp"
             android:layout_columnWeight="1"
             android:layout_margin="4dp"
-            android:text="/"
-            android:textColor="?android:attr/textColorPrimary"
+            android:text="AC"
+            android:textColor="@color/red"
             android:textSize="24sp" />
 
         <Button
@@ -132,13 +132,13 @@
             android:textSize="24sp" />
 
         <Button
-            android:id="@+id/btnMultiply"
+            android:id="@+id/btnParenthesis"
             style="@style/Widget.AppCompat.Button.Borderless"
             android:layout_width="0dp"
             android:layout_height="70dp"
             android:layout_columnWeight="1"
             android:layout_margin="4dp"
-            android:text="*"
+            android:text="( )"
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="24sp" />
 
@@ -176,13 +176,13 @@
             android:textSize="24sp" />
 
         <Button
-            android:id="@+id/btnSubtract"
+            android:id="@+id/btnDivide"
             style="@style/Widget.AppCompat.Button.Borderless"
             android:layout_width="0dp"
             android:layout_height="70dp"
             android:layout_columnWeight="1"
             android:layout_margin="4dp"
-            android:text="-"
+            android:text="/"
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="24sp" />
 
@@ -220,24 +220,13 @@
             android:textSize="24sp" />
 
         <Button
-            android:id="@+id/btnSum"
+            android:id="@+id/btnMultiply"
             style="@style/Widget.AppCompat.Button.Borderless"
             android:layout_width="0dp"
             android:layout_height="70dp"
             android:layout_columnWeight="1"
             android:layout_margin="4dp"
-            android:text="+"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textSize="24sp" />
-
-        <Button
-            android:id="@+id/btnPercent"
-            style="@style/Widget.AppCompat.Button.Borderless"
-            android:layout_width="0dp"
-            android:layout_height="70dp"
-            android:layout_columnWeight="1"
-            android:layout_margin="4dp"
-            android:text="%"
+            android:text="*"
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="24sp" />
 
@@ -264,13 +253,35 @@
             android:textSize="24sp" />
 
         <Button
-            android:id="@+id/btnEquals"
-            style="@style/Widget.AppCompat.Button.Borderless.Colored"
+            android:id="@+id/btnSubtract"
+            style="@style/Widget.AppCompat.Button.Borderless"
             android:layout_width="0dp"
             android:layout_height="70dp"
             android:layout_columnWeight="1"
             android:layout_margin="4dp"
-            android:text="="
+            android:text="-"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="24sp" />
+
+        <Button
+            android:id="@+id/btnSum"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_height="70dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="4dp"
+            android:text="+"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="24sp" />
+
+        <Button
+            android:id="@+id/btnPercent"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_height="70dp"
+            android:layout_columnWeight="1"
+            android:layout_margin="4dp"
+            android:text="%"
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="24sp" />
 
@@ -296,11 +307,17 @@
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="24sp" />
 
-        <Space
+        <Button
+            android:id="@+id/btnEquals"
+            style="@style/Widget.AppCompat.Button.Borderless.Colored"
             android:layout_width="0dp"
             android:layout_height="70dp"
-            android:layout_columnWeight="2"
-            android:layout_margin="4dp" />
+            android:layout_columnWeight="1"
+            android:layout_margin="4dp"
+            android:text="="
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="24sp" />
+
 
     </GridLayout>
 

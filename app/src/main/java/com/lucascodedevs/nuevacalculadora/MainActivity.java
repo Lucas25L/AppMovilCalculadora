@@ -1,8 +1,6 @@
 package com.lucascodedevs.nuevacalculadora;
 
-import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -10,21 +8,28 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import net.objecthunter.exp4j.Expression; // Importar la clase Expression
+import net.objecthunter.exp4j.ExpressionBuilder; // Importar la clase ExpressionBuilder
+
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
     private TextView tvOperation, tvResult;
-    private StringBuilder currentInput = new StringBuilder(); // Para construir la entrada actual
-    private String lastOperator = ""; // Último operador presionado (+, -, *, /)
-    private double firstOperand = 0; // Primer operando de la operación
-    private boolean newOperation = true; // Indica si estamos empezando una nueva operación
-    private boolean isDecimalAdded = false; // Controla si ya se añadió un punto decimal
+    // currentInput ya no es StringBuilder, será String para la expresión completa
+    private StringBuilder currentFullExpression = new StringBuilder();
+
+    // No necesitamos lastOperator, firstOperand, newOperation, isDecimalAdded directamente para exp4j
+    // isDecimalAdded y newOperation los manejaremos de forma más local o implícita.
+
+    // Variables de control de estado para la entrada
+    private boolean isDecimalAllowed = true; // Controla si se puede añadir un punto decimal al número actual
+    private boolean isNewOperandStarting = true; // True si el siguiente dígito inicia un nuevo número/operando
 
     // Historial
     private ArrayList<String> historyList = new ArrayList<>();
-    private int historyIndex = -1; // -1 significa que no estamos viendo el historial
+    private int historyIndex = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,12 +39,15 @@ public class MainActivity extends AppCompatActivity {
         tvOperation = findViewById(R.id.tvOperation);
         tvResult = findViewById(R.id.tvResult);
 
-        // Configurar listeners para botones numéricos y el punto decimal
+        // Configurar listeners para botones numéricos
         setNumericButtonListeners();
         // Configurar listeners para botones de operadores
         setOperatorButtonListeners();
-        // Configurar listeners para botones especiales (C, =, Historial, Avanzadas)
+        // Configurar listeners para botones especiales (C, AC, Parenthesis, =)
         setSpecialButtonListeners();
+
+        // Inicializar el tvResult a "0" al inicio
+        tvResult.setText("0");
     }
 
     // --- Métodos de Configuración de Listeners ---
@@ -54,14 +62,20 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Button b = (Button) v;
-                if (newOperation) {
-                    currentInput.setLength(0); // Limpiar para nueva operación
-                    tvOperation.setText("");
-                    newOperation = false;
-                    isDecimalAdded = false;
+                String digit = b.getText().toString();
+
+                if (isNewOperandStarting) { // Si el siguiente dígito inicia un nuevo operando
+                    tvResult.setText(digit); // Reemplaza lo que haya en tvResult (0, operador, o resultado anterior)
+                    isNewOperandStarting = false; // Ya no estamos empezando un nuevo operando
+                } else if (tvResult.getText().toString().equals("0") && !digit.equals(".")) {
+                    tvResult.setText(digit); // Para reemplazar el 0 inicial con el primer dígito
+                } else {
+                    tvResult.append(digit); // Agrega el dígito
                 }
-                currentInput.append(b.getText().toString());
-                tvResult.setText(currentInput.toString());
+                currentFullExpression.append(digit); // Siempre agrega a la expresión completa
+                tvOperation.setText(currentFullExpression.toString()); // Muestra la expresión completa en tvOperation
+
+                isDecimalAllowed = !tvResult.getText().toString().contains("."); // Actualizar si el número actual tiene decimal
             }
         };
 
@@ -69,20 +83,24 @@ public class MainActivity extends AppCompatActivity {
             findViewById(id).setOnClickListener(numericListener);
         }
 
-        // Listener para el punto decimal
+        // Listener para el punto decimal (pequeño ajuste)
         findViewById(R.id.btnDot).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!isDecimalAdded) {
-                    if (currentInput.length() == 0) { // Si no hay nada, empieza con "0."
-                        currentInput.append("0.");
+                if (isDecimalAllowed) {
+                    if (isNewOperandStarting || tvResult.getText().toString().isEmpty() || isOperator(tvResult.getText().charAt(0))) {
+                        // Si estamos empezando un nuevo operando o tvResult está vacío o tiene un operador,
+                        // añadimos "0." para empezar un decimal.
+                        tvResult.setText("0.");
+                        currentFullExpression.append("0.");
                     } else {
-                        currentInput.append(".");
+                        tvResult.append(".");
+                        currentFullExpression.append(".");
                     }
-                    isDecimalAdded = true;
-                    tvResult.setText(currentInput.toString());
-                    newOperation = false; // No es una nueva operación si se añade un decimal
+                    isDecimalAllowed = false; // Solo un decimal por número
+                    isNewOperandStarting = false; // No es un nuevo operando si se añade un decimal
                 }
+                tvOperation.setText(currentFullExpression.toString());
             }
         });
     }
@@ -98,44 +116,46 @@ public class MainActivity extends AppCompatActivity {
                 Button b = (Button) v;
                 String operator = b.getText().toString();
 
-                if (currentInput.length() == 0 && firstOperand == 0 && !newOperation) {
-                    // Permite cambiar el operador si no hay nueva entrada
-                    lastOperator = operator;
-                    String opText = tvOperation.getText().toString();
-                    if (!opText.isEmpty()) {
-                        opText = opText.substring(0, opText.length() - 1) + operator;
-                        tvOperation.setText(opText);
-                    }
-                    return;
+                // Manejar el caso donde no hay nada en la expresión pero hay un resultado en tvResult
+                if (currentFullExpression.length() == 0 && !tvResult.getText().toString().equals("0") && !tvResult.getText().toString().isEmpty()) {
+                    currentFullExpression.append(tvResult.getText().toString());
                 }
 
-                if (currentInput.length() > 0) {
-                    try {
-                        double secondOperand = Double.parseDouble(currentInput.toString());
-                        if (!lastOperator.isEmpty() && !newOperation) {
-                            // Realizar la operación anterior antes de establecer el nuevo operador
-                            double result = calculate(firstOperand, secondOperand, lastOperator);
-                            firstOperand = result;
-                            tvResult.setText(formatResult(result));
-                            tvOperation.setText(formatResult(firstOperand) + operator);
-                        } else {
-                            firstOperand = secondOperand;
-                            tvOperation.setText(formatResult(firstOperand) + operator);
+                if (currentFullExpression.length() > 0) {
+                    char lastChar = currentFullExpression.charAt(currentFullExpression.length() - 1);
+                    if (isOperator(lastChar)) {
+                        // Reemplazar el último operador si se presiona otro
+                        currentFullExpression.setLength(currentFullExpression.length() - 1);
+                    } else if (lastChar == '(') {
+                        // No permitir operador después de abrir paréntesis sin número, a menos que sea un signo negativo
+                        if (!operator.equals("-")) { // Permite "(-"
+                            showError("Error: Operador después de abrir paréntesis.");
+                            return;
                         }
-                        lastOperator = operator;
-                        currentInput.setLength(0); // Limpiar para la siguiente entrada
-                        isDecimalAdded = false;
-                        newOperation = false; // No es una nueva operación, estamos encadenando
-                    } catch (NumberFormatException e) {
-                        showError("Entrada numérica inválida.");
-                        clearAll(); // Limpiar para empezar de nuevo
                     }
-                } else if (tvResult.getText().toString().equals("0") && tvOperation.getText().toString().isEmpty()) {
-                    // Si solo hay un 0 y no hay operación, permite empezar con un 0 y el operador
-                    firstOperand = 0;
-                    lastOperator = operator;
-                    tvOperation.setText("0" + operator);
-                    newOperation = false;
+                    currentFullExpression.append(operator);
+                    tvOperation.setText(currentFullExpression.toString());
+                    // NO CAMBIAR tvResult AQUÍ. Se mantiene el último número o el resultado.
+                    // tvResult.setText(operator); // <--- QUITAR ESTA LÍNEA O COMENTARLA
+                    isDecimalAllowed = true; // Permitir decimal en el siguiente número
+                    isNewOperandStarting = true; // El siguiente dígito inicia un nuevo operando
+                } else if (tvResult.getText().toString().equals("0")) {
+                    // Si todo esta a cero, se puede empezar con un operador (ej. -5)
+                    // Si el operador es -, lo añade directamente para permitir "-5"
+                    if (operator.equals("-")) {
+                        currentFullExpression.append(operator);
+                        tvOperation.setText(currentFullExpression.toString());
+                        tvResult.setText(operator); // Muestra el '-' en tvResult
+                        isDecimalAllowed = true;
+                        isNewOperandStarting = true;
+                    } else {
+                        // Para otros operadores como +, *, / al inicio, añadir un 0 implícito
+                        currentFullExpression.append("0").append(operator);
+                        tvOperation.setText(currentFullExpression.toString());
+                        tvResult.setText("0" + operator); // Muestra "0+" etc.
+                        isDecimalAllowed = true;
+                        isNewOperandStarting = true;
+                    }
                 }
             }
         };
@@ -146,48 +166,142 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setSpecialButtonListeners() {
-        // Botón C (Clear All)
+        // Botón C (Clear) - Ahora borra un solo carácter
         findViewById(R.id.btnClear).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (currentFullExpression.length() > 0) {
+                    char lastChar = currentFullExpression.charAt(currentFullExpression.length() - 1);
+                    if (lastChar == '.') {
+                        isDecimalAllowed = true; // Permitir el punto de nuevo si se borra
+                    }
+                    currentFullExpression.setLength(currentFullExpression.length() - 1); // Borrar el último carácter
+
+                    if (currentFullExpression.length() == 0) {
+                        tvOperation.setText("");
+                        tvResult.setText("0");
+                        isDecimalAllowed = true;
+                        isNewOperandStarting = true;
+                    } else {
+                        tvOperation.setText(currentFullExpression.toString());
+                        // Actualizar tvResult con el último número si es posible
+                        String lastPart = getLastNumberOrOperator(currentFullExpression.toString());
+                        tvResult.setText(lastPart);
+                        // Re-evaluar si se puede añadir decimal al último número restante
+                        isDecimalAllowed = !lastPart.contains(".");
+                    }
+                } else {
+                    tvResult.setText("0"); // Si no hay nada, asegurar que tvResult sea 0
+                    tvOperation.setText("");
+                }
+            }
+        });
+
+        // Botón AC (All Clear)
+        findViewById(R.id.btnAllClear).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 clearAll();
             }
         });
 
-        // Botón Igual (=)
+        // Botón Parenthesis (abre y cierra inteligente)
+        findViewById(R.id.btnParenthesis).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String expression = currentFullExpression.toString();
+                int openParenthesesCount = 0;
+                int closeParenthesesCount = 0;
+
+                for (char c : expression.toCharArray()) {
+                    if (c == '(') {
+                        openParenthesesCount++;
+                    } else if (c == ')') {
+                        closeParenthesesCount++;
+                    }
+                }
+
+                char lastChar = ' ';
+                if (expression.length() > 0) {
+                    lastChar = expression.charAt(expression.length() - 1);
+                }
+
+                // Lógica para abrir paréntesis
+                // Se puede abrir si:
+                // 1. La expresión está vacía.
+                // 2. El último carácter es un operador.
+                // 3. El último carácter es un '('.
+                boolean canOpen = expression.isEmpty() || isOperator(lastChar) || lastChar == '(';
+
+                // Lógica para cerrar paréntesis
+                // Se puede cerrar si:
+                // 1. Hay más paréntesis abiertos que cerrados.
+                // 2. El último carácter es un número o ')'.
+                boolean canClose = openParenthesesCount > closeParenthesesCount && (Character.isDigit(lastChar) || lastChar == ')');
+
+                if (canClose) {
+                    currentFullExpression.append(")");
+                } else if (canOpen) {
+                    currentFullExpression.append("(");
+                } else {
+                    // Caso como "5(" - no permite abrir directamente después de un número sin operador
+                    // Opcional: mostrar un Toast o simplemente no hacer nada.
+                    // Para una calculadora científica, "5(" a menudo se interpreta como "5 * ("
+                    // Por ahora, solo insertamos '('.
+                    currentFullExpression.append("(");
+                }
+
+                tvOperation.setText(currentFullExpression.toString());
+                tvResult.setText(currentFullExpression.toString()); // Mostrar la expresión actual en tvResult
+                isDecimalAllowed = true; // Permitir decimal en el siguiente número
+                isNewOperandStarting = true; // El siguiente dígito inicia un nuevo operando
+            }
+        });
+
+
+        // Botón Igual (=) - Aquí es donde usaremos exp4j
         findViewById(R.id.btnEquals).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (currentInput.length() > 0 && !lastOperator.isEmpty()) {
-                    try {
-                        double secondOperand = Double.parseDouble(currentInput.toString());
-                        double finalResult = calculate(firstOperand, secondOperand, lastOperator);
-                        String historyEntry = formatResult(firstOperand) + " " + lastOperator + " " + formatResult(secondOperand) + " = " + formatResult(finalResult);
-                        addHistoryEntry(historyEntry);
+                String expressionToEvaluate = currentFullExpression.toString();
 
-                        tvOperation.setText(historyEntry); // Muestra la operación completa
-                        tvResult.setText(formatResult(finalResult));
-                        currentInput.setLength(0); // Limpiar para la siguiente operación
-                        firstOperand = finalResult; // El resultado es el primer operando para futuras operaciones
-                        lastOperator = ""; // Reiniciar el operador
-                        newOperation = true; // Siguiente entrada comenzará una nueva operación
-                        isDecimalAdded = false;
-                    } catch (NumberFormatException e) {
-                        showError("Entrada numérica inválida.");
-                        clearAll();
-                    }
-                } else if (currentInput.length() > 0 && lastOperator.isEmpty()) {
-                    // Si solo hay un número ingresado y se presiona "=", mostrarlo como resultado
-                    tvResult.setText(currentInput.toString());
-                    firstOperand = Double.parseDouble(currentInput.toString());
-                    tvOperation.setText(currentInput.toString());
-                    currentInput.setLength(0);
-                    newOperation = true;
-                } else if (!tvOperation.getText().toString().isEmpty() && !tvResult.getText().toString().isEmpty() && lastOperator.isEmpty()) {
-                    // Si ya se ha calculado un resultado y se presiona '=', solo muestra el resultado
-                    // No hacer nada si ya está en estado final y no hay nueva entrada
-                } else {
-                    showError("Operación incompleta.");
+                if (expressionToEvaluate.isEmpty()) {
+                    tvResult.setText("0");
+                    return;
+                }
+
+                // Asegurarse de que los paréntesis estén balanceados antes de evaluar
+                // Esto es una verificación básica. exp4j manejará la mayoría de los errores de sintaxis.
+                int openCount = 0;
+                int closeCount = 0;
+                for (char c : expressionToEvaluate.toCharArray()) {
+                    if (c == '(') openCount++;
+                    if (c == ')') closeCount++;
+                }
+                while (openCount > closeCount) { // Auto-cerrar paréntesis faltantes al final
+                    expressionToEvaluate += ")";
+                    closeCount++;
+                }
+
+                try {
+                    // Evaluar la expresión usando exp4j
+                    Expression expression = new ExpressionBuilder(expressionToEvaluate)
+                            .build();
+                    double result = expression.evaluate();
+
+                    String formattedResult = formatResult(result);
+                    String historyEntry = expressionToEvaluate + " = " + formattedResult;
+                    addHistoryEntry(historyEntry);
+
+                    tvOperation.setText(historyEntry); // Muestra la operación completa y resultado
+                    tvResult.setText(formattedResult);
+                    currentFullExpression.setLength(0); // Limpiar para nueva operación
+                    currentFullExpression.append(formattedResult); // El resultado es el inicio de la siguiente
+                    isDecimalAllowed = !formattedResult.contains("."); // Si el resultado tiene decimal, no permitir otro
+                    isNewOperandStarting = true; // Siguiente dígito sobreescribirá el resultado
+                } catch (Exception e) {
+                    showError("Error de expresión: " + e.getMessage());
+                    clearAll(); // Limpiar en caso de error
                 }
             }
         });
@@ -196,71 +310,65 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnPercent).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (currentInput.length() > 0) {
-                    try {
-                        double value = Double.parseDouble(currentInput.toString());
-                        double percentResult = value / 100.0;
-                        tvResult.setText(formatResult(percentResult));
-                        currentInput.setLength(0);
-                        currentInput.append(formatResult(percentResult)); // Para que el resultado sea la nueva entrada
-                        newOperation = true; // Permite que el siguiente número borre esto
-                    } catch (NumberFormatException e) {
-                        showError("Valor inválido para porcentaje.");
+                // Esta lógica necesita ser adaptada para trabajar con la expresión completa
+                // y exp4j para ser verdaderamente "científica" o avanzada.
+                // Por ahora, una implementación simple que aplica % al último número.
+                String currentExp = currentFullExpression.toString();
+                if (currentExp.isEmpty()) {
+                    showError("Ingrese un número para porcentaje.");
+                    return;
+                }
+                try {
+                    // Intenta extraer el último número para aplicar el porcentaje
+                    String lastNumberStr = getLastNumber(currentExp);
+                    if (lastNumberStr.isEmpty()) {
+                        showError("No hay número para porcentaje.");
+                        return;
                     }
-                } else if (firstOperand != 0 && !lastOperator.isEmpty()) {
-                    // Permite calcular un porcentaje del primer operando si ya hay uno
-                    try {
-                        double percentOfFirst = firstOperand / 100.0;
-                        tvResult.setText(formatResult(percentOfFirst));
-                        currentInput.setLength(0);
-                        currentInput.append(formatResult(percentOfFirst));
-                        newOperation = true;
-                    } catch (Exception e) {
-                        showError("Error calculando porcentaje.");
-                    }
+                    double value = Double.parseDouble(lastNumberStr);
+                    double percentResult = value / 100.0;
+
+                    // Reemplazar el último número en la expresión con su porcentaje
+                    currentFullExpression.setLength(currentFullExpression.length() - lastNumberStr.length());
+                    currentFullExpression.append(formatResult(percentResult));
+                    tvOperation.setText(currentFullExpression.toString());
+                    tvResult.setText(formatResult(percentResult));
+                    isDecimalAllowed = !formatResult(percentResult).contains(".");
+                    isNewOperandStarting = true;
+                } catch (NumberFormatException e) {
+                    showError("Valor inválido para porcentaje.");
                 }
             }
         });
 
-        // Botón Potencia (x²) - lo usaremos como x^2 simplificado para ahora
+        // Botón Potencia (x²) - por ahora, sigue siendo x^2
         findViewById(R.id.btnPower).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (currentInput.length() > 0) {
-                    try {
-                        double value = Double.parseDouble(currentInput.toString());
-                        double powerResult = Math.pow(value, 2); // Calcula x al cuadrado
-                        String historyEntry = formatResult(value) + "^2 = " + formatResult(powerResult);
-                        addHistoryEntry(historyEntry);
-
-                        tvOperation.setText(historyEntry);
-                        tvResult.setText(formatResult(powerResult));
-                        currentInput.setLength(0);
-                        firstOperand = powerResult; // El resultado es el primer operando para encadenar
-                        lastOperator = "";
-                        newOperation = true;
-                        isDecimalAdded = false;
-                    } catch (NumberFormatException e) {
-                        showError("Valor inválido para potencia.");
+                String currentExp = currentFullExpression.toString();
+                if (currentExp.isEmpty()) {
+                    showError("Ingrese un número para elevar al cuadrado.");
+                    return;
+                }
+                try {
+                    String lastNumberStr = getLastNumber(currentExp);
+                    if (lastNumberStr.isEmpty()) {
+                        showError("No hay número para elevar al cuadrado.");
+                        return;
                     }
-                } else if (!tvResult.getText().toString().equals("0") && !tvResult.getText().toString().isEmpty()) {
-                    // Si no hay entrada actual, usa el resultado mostrado
-                    try {
-                        double value = Double.parseDouble(tvResult.getText().toString());
-                        double powerResult = Math.pow(value, 2);
-                        String historyEntry = formatResult(value) + "^2 = " + formatResult(powerResult);
-                        addHistoryEntry(historyEntry);
+                    double value = Double.parseDouble(lastNumberStr);
+                    double powerResult = Math.pow(value, 2);
 
-                        tvOperation.setText(historyEntry);
-                        tvResult.setText(formatResult(powerResult));
-                        currentInput.setLength(0);
-                        firstOperand = powerResult;
-                        lastOperator = "";
-                        newOperation = true;
-                        isDecimalAdded = false;
-                    } catch (NumberFormatException e) {
-                        showError("Valor inválido para potencia.");
-                    }
+                    currentFullExpression.setLength(currentFullExpression.length() - lastNumberStr.length());
+                    currentFullExpression.append(formatResult(powerResult));
+
+                    tvOperation.setText(currentFullExpression.toString());
+                    tvResult.setText(formatResult(powerResult));
+                    isDecimalAllowed = !formatResult(powerResult).contains(".");
+                    isNewOperandStarting = true;
+
+                } catch (NumberFormatException e) {
+                    showError("Valor inválido para potencia.");
                 }
             }
         });
@@ -269,36 +377,36 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnSqrt).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (currentInput.length() > 0 || (!tvResult.getText().toString().equals("0") && !tvResult.getText().toString().isEmpty())) {
-                    try {
-                        double value;
-                        if (currentInput.length() > 0) {
-                            value = Double.parseDouble(currentInput.toString());
-                        } else {
-                            value = Double.parseDouble(tvResult.getText().toString());
-                        }
-
-                        if (value < 0) {
-                            showError("No se puede calcular la raíz de un número negativo.");
-                            clearAll(); // Opcional: limpiar si es un error grave
-                            return;
-                        }
-                        double sqrtResult = Math.sqrt(value);
-                        String historyEntry = "√" + formatResult(value) + " = " + formatResult(sqrtResult);
-                        addHistoryEntry(historyEntry);
-
-                        tvOperation.setText(historyEntry);
-                        tvResult.setText(formatResult(sqrtResult));
-                        currentInput.setLength(0);
-                        firstOperand = sqrtResult;
-                        lastOperator = "";
-                        newOperation = true;
-                        isDecimalAdded = false;
-                    } catch (NumberFormatException e) {
-                        showError("Valor inválido para raíz cuadrada.");
+                String currentExp = currentFullExpression.toString();
+                if (currentExp.isEmpty()) {
+                    showError("Ingrese un número para calcular la raíz.");
+                    return;
+                }
+                try {
+                    String lastNumberStr = getLastNumber(currentExp);
+                    if (lastNumberStr.isEmpty()) {
+                        showError("No hay número para calcular la raíz.");
+                        return;
                     }
-                } else {
-                    showError("Ingrese un valor para calcular la raíz cuadrada.");
+                    double value = Double.parseDouble(lastNumberStr);
+
+                    if (value < 0) {
+                        showError("No se puede calcular la raíz de un número negativo.");
+                        clearAll();
+                        return;
+                    }
+                    double sqrtResult = Math.sqrt(value);
+
+                    currentFullExpression.setLength(currentFullExpression.length() - lastNumberStr.length());
+                    currentFullExpression.append(formatResult(sqrtResult));
+
+                    tvOperation.setText("sqrt(" + lastNumberStr + ") = " + formatResult(sqrtResult));
+                    tvResult.setText(formatResult(sqrtResult));
+                    isDecimalAllowed = !formatResult(sqrtResult).contains(".");
+                    isNewOperandStarting = true;
+
+                } catch (NumberFormatException e) {
+                    showError("Valor inválido para raíz cuadrada.");
                 }
             }
         });
@@ -315,10 +423,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                     tvOperation.setText("Historial:");
                     tvResult.setText(historyList.get(historyIndex));
-                    // Deshabilitar entrada de número si estamos en historial
-                    currentInput.setLength(0);
-                    newOperation = true;
-                    lastOperator = ""; // Para evitar operaciones encadenadas desde el historial
+                    currentFullExpression.setLength(0); // Deshabilitar entrada directa
+                    isNewOperandStarting = true; // Para que el siguiente número borre el historial
                 } else {
                     showError("No hay historial.");
                 }
@@ -334,19 +440,20 @@ public class MainActivity extends AppCompatActivity {
                         historyIndex++;
                         tvOperation.setText("Historial:");
                         tvResult.setText(historyList.get(historyIndex));
-                        // Deshabilitar entrada de número si estamos en historial
-                        currentInput.setLength(0);
-                        newOperation = true;
-                        lastOperator = "";
+                        currentFullExpression.setLength(0); // Deshabilitar entrada directa
+                        isNewOperandStarting = true;
                     } else {
                         showError("Fin del historial.");
-                        // Si llegamos al final, podemos volver al estado normal
+                        // Si llegamos al final, salimos del modo historial y volvemos a la expresión normal
                         if (historyList.size() > 0) {
-                            historyIndex = -1; // Salir del modo historial
-                            tvOperation.setText("");
-                            tvResult.setText(historyList.get(historyList.size() - 1).split("=")[1].trim()); // Muestra el último resultado
-                            currentInput.append(historyList.get(historyList.size() - 1).split("=")[1].trim());
-                            newOperation = true; // Lista para nueva operación
+                            historyIndex = -1;
+                            String lastResult = historyList.get(historyList.size() - 1).split("=")[1].trim();
+                            tvOperation.setText(""); // Opcional: mostrar la última operación de historial
+                            tvResult.setText(lastResult);
+                            currentFullExpression.setLength(0);
+                            currentFullExpression.append(lastResult);
+                            isDecimalAllowed = !lastResult.contains(".");
+                            isNewOperandStarting = true;
                         }
                     }
                 } else {
@@ -358,44 +465,74 @@ public class MainActivity extends AppCompatActivity {
 
     // --- Métodos de Lógica de la Calculadora ---
 
+    // Este metodo calculate() ya no será tan usado para la evaluación principal
+    // pero lo mantendremos por si otras partes lo necesitan (ej. en funciones futuras).
     private double calculate(double num1, double num2, String operator) {
         switch (operator) {
-            case "+":
-                return num1 + num2;
-            case "-":
-                return num1 - num2;
-            case "*":
-                return num1 * num2;
+            case "+": return num1 + num2;
+            case "-": return num1 - num2;
+            case "*": return num1 * num2;
             case "/":
                 if (num2 == 0) {
                     throw new ArithmeticException("División por cero");
                 }
                 return num1 / num2;
             default:
-                return 0; // Esto no debería suceder
+                throw new IllegalArgumentException("Operador desconocido: " + operator);
         }
     }
 
+    private void clearLast() {
+        // Implementación más robusta para C (borrar un carácter)
+        if (currentFullExpression.length() > 0) {
+            char lastChar = currentFullExpression.charAt(currentFullExpression.length() - 1);
+            currentFullExpression.setLength(currentFullExpression.length() - 1);
+
+            // Ajustar estado de isDecimalAllowed si se borra un punto
+            if (lastChar == '.') {
+                isDecimalAllowed = true;
+            } else if (isOperator(lastChar) || lastChar == '(' || lastChar == ')') {
+                // Si borramos un operador o paréntesis, el siguiente número puede tener decimal
+                isDecimalAllowed = true;
+                isNewOperandStarting = false; // El último borrado no implica un nuevo operando
+            }
+
+            if (currentFullExpression.length() == 0) {
+                tvOperation.setText("");
+                tvResult.setText("0");
+                isDecimalAllowed = true;
+                isNewOperandStarting = true;
+            } else {
+                tvOperation.setText(currentFullExpression.toString());
+                // Intenta mostrar el último número o el final de la expresión en tvResult
+                tvResult.setText(getLastNumberOrOperator(currentFullExpression.toString()));
+            }
+        } else {
+            tvResult.setText("0");
+            tvOperation.setText("");
+            isDecimalAllowed = true;
+            isNewOperandStarting = true;
+        }
+    }
+
+
     private void clearAll() {
-        currentInput.setLength(0);
+        currentFullExpression.setLength(0);
         tvResult.setText("0");
         tvOperation.setText("");
-        firstOperand = 0;
-        lastOperator = "";
-        newOperation = true;
-        isDecimalAdded = false;
-        historyIndex = -1; // Resetear el índice del historial
+        isDecimalAllowed = true;
+        isNewOperandStarting = true;
+        historyIndex = -1;
     }
 
     private void showError(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-        // Opcional: Podrías también mostrar el mensaje en tvResult o tvOperation
-        // tvResult.setText("Error");
     }
 
     // Para formatear los resultados y evitar demasiados decimales
     private String formatResult(double value) {
-        DecimalFormat df = new DecimalFormat("#.##########"); // Hasta 10 decimales, elimina ceros finales
+        // Puedes ajustar la cantidad de decimales si es necesario
+        DecimalFormat df = new DecimalFormat("#.##########");
         return df.format(value);
     }
 
@@ -403,10 +540,35 @@ public class MainActivity extends AppCompatActivity {
 
     private void addHistoryEntry(String entry) {
         historyList.add(entry);
-        // Si la lista es muy grande, podríamos limitar su tamaño aquí
-        // if (historyList.size() > 20) {
-        //    historyList.remove(0);
-        // }
-        historyIndex = -1; // Al agregar, salimos del modo historial
+        historyIndex = -1;
+    }
+
+    // --- Métodos Auxiliares para el Parser ---
+
+    // Método auxiliar para verificar si un carácter es un operador
+    private boolean isOperator(char c) {
+        return c == '+' || c == '-' || c == '*' || c == '/';
+    }
+
+    // Método auxiliar para obtener el último número de la expresión
+    // Útil para % y x² donde solo se opera sobre el último valor.
+    private String getLastNumber(String expression) {
+        int i = expression.length() - 1;
+        while (i >= 0 && (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
+            i--;
+        }
+        return expression.substring(i + 1);
+    }
+
+    // Metodo auxiliar para obtener el último número o operador para mostrar en tvResult
+    private String getLastNumberOrOperator(String expression) {
+        if (expression.isEmpty()) return "";
+        char lastChar = expression.charAt(expression.length() - 1);
+        if (Character.isDigit(lastChar) || lastChar == '.') {
+            return getLastNumber(expression);
+        } else if (isOperator(lastChar) || lastChar == '(' || lastChar == ')') {
+            return String.valueOf(lastChar);
+        }
+        return ""; // Caso por defecto
     }
 }
